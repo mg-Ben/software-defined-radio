@@ -61,6 +61,7 @@ subplot(2, 1, 2)
 stem(0:length(rx_frame)-1, rx_frame);
 
 % extract the message
+rx_frame=rx_frame';
 [rx_msg, err] = get_msg(rx_frame, FRAME_HDR);
 
 % decode the message
@@ -202,7 +203,7 @@ xf = filter(ps, 1, x);
 % en base a la señal recibida (de manera estimada), ya que
 % no se puede predecir con exactitud el retardo del LPF
 % que hay detrás del oscilador del demodulador
-z = xf(23:M:length(xf));
+z = xf(31:M:length(xf));
 % decision
 % En este caso (BPSK), se tienen dos regiones de decisión:
 % > 0 y < 0 (no es necesario cuantificar estrictamente)
@@ -220,7 +221,7 @@ function [msg, err] = get_msg(frame, header)
 err = 0;
 % make frame and header bipolar
 str = 2*frame-1;
-hdr = 2*header-1;
+hdr = 2*header-1;cd 
 % locate header
 [sh, lags] = xcorr(str, hdr);
 [m, idx] = max(sh);
