@@ -2,14 +2,14 @@
 % Design of Communication Systems and Equipment (DCSE)                    %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Cleaning
-clear all, clf;
+clear, clf;
 %% Parameters 
 FRAME_HDR = [1, 0, 1, 0, 0, 1, 1, 1, 0, 1]';   % frame header
 FS = 10e6;                  % sampling frequency (Hz)
 TS = 1/FS;                  % sampling period (s)
 M = 15;                     % oversampling factor
 FC = 1e6;                   % carrier frequency (Hz)
-PHIC = 0;                   % carrier phase (rad)
+PHIC = 1;                   % carrier phase (rad)
 SNR = 30;                   % channel white gaussian noise (dB)
 %% Tx
 % message frame
@@ -18,22 +18,18 @@ tx_frame = make_frame(FRAME_HDR, tx_msg);
 % stem(0:length(tx_frame)-1, tx_frame);
 
 % baseband signal
-ps = hamming(M); %%% Change this line %%%
+ps = zeros(M, 1); %%% Change this line %%%
 ms = make_signal(tx_frame, M, ps);
-figure;
-stem(1:20*M, ms(1:20*M))
+% stem(1:20*M, real(ms(1:20*M)))
 
 % modulate the baseband signal
 s = modulate(ms, FS, FC, PHIC);
-figure;
-plot(0:length(s)-1, s);
+% plot(0:length(s)-1, s);
 
 %% Channel
 % corrupted by AWGN received signal
 r = add_noise(s, SNR);
-figure;
-plot(0:length(s)-1, s); hold on;
-plot(0:length(r)-1, r);
+% plot(0:length(r)-1, r);
 
 %% Rx
 % demodulation filter
@@ -43,8 +39,7 @@ fa = [1 1 0 0];
 lpf = firpm(order, ff, fa);
 
 % demodulate the received signal
-phi = 0;
-rd = demodulate(r, FS, FC, lpf, phi);
+rd = demodulate(r, FS, FC, lpf, PHIC);
 % stem(0:10*M-1, rd(1:10*M))
 
 % get the received frame
@@ -93,25 +88,18 @@ function y = make_signal(frame, M, pulse)
 %   y: baseband signal as column vector
 %    
 % mapping: change 0's for -1, leave 1's unchanged
-%%% Your code here %%%
-ms = zeros(1, length(frame)*M);
-% 2-PAM dictionary:
-PAM_dictionary_keys = configureDictionary("int64", "int64");
-PAM_dictionary_keys(0) = -1;
-PAM_dictionary_keys(1) = 1;
+frame_bipolar=frame*2-1;
 
 % pulse shaping: (expansion + filtering)
-for i=1:length(frame)
-    ms((i-1)*M+1)=PAM_dictionary_keys(frame(i));
-end
-ms = filter(pulse, 1, ms);
+frame_bipolar_i=frame_bipolar(1:2:length(frame_bipolar));
+frame_bipolar_q=frame_bipolar(2:2:length(frame_bipolar));
 
-% add some zeros at the end of the signal (for correlation)
-ms = [ms, zeros(1, 10*M)];
+% add some zeros at the end of the signal
+frame_bipolar_i=[frame_bipolar_i, zeros(1,10*M)];
+frame_bipolar_q=[frame_bipolar_q, zeros(1,10*M)];
 
-% apply shaping pulse 
-%%% Your code here %%%
-y = ms;
+%%% Delete next line %%%
+y = frame;cd cd
 end
 %%
 function s = modulate(x, fs, fc, phi)
@@ -126,10 +114,10 @@ function s = modulate(x, fs, fc, phi)
 %   s: modulated signal (column vector)
 %
 % modulation
-discrete_domain = 0:length(x)-1;
-carrier_signal=cos(2*pi*fc/fs*discrete_domain + phi);
+%%% Your code here %%%
 
-s = x.*carrier_signal;
+%%% Delete next line %%%
+s = x;
 end
 %%
 function y = add_noise(x, snr)
@@ -142,15 +130,16 @@ function y = add_noise(x, snr)
 %
 
 % signal power
-signal_power=pow(x);
+%%% Your code here %%%
 
 % noise
-snr_nat_power = 10^(snr/10);
-noise_power = signal_power/snr_nat_power;
-noise_sigma = sqrt(noise_power);
+%%% Your code here %%%
+
 % corruption
-n = noise_sigma*randn(1, length(x));
-y = x+n;
+%%% Your code here %%%
+
+%%% Delete next line %%%
+y = x;
 end
 %%
 function y = demodulate(r, fs, fc, flt, phi)
@@ -160,18 +149,17 @@ function y = demodulate(r, fs, fc, flt, phi)
 %   r: input signal (column vector)
 %   fs: sampling frequency
 %   fc: carrier frequency
+%   phi: carrier phase
 % outputs:
 %   y: demodulated signal (column vector)
 %
 % demodulation
-discrete_domain = 0:length(r)-1;
-carrier_signal=cos(2*pi*fc/fs*discrete_domain + phi);
+%%% Your code here %%%
 
-s = r.*carrier_signal;
 % filter
-x = filter(flt, 1, s);
-
-
+%%% Your code here %%%
+ 
+%%% Delete next line %%%
 y = r;
 end
 %%
