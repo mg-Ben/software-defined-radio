@@ -2,7 +2,7 @@
 % Design of Communication Systems and Equipment (DCSE)                    %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Cleaning
-clear, clf;
+close all; clc;
 %% Parameters 
 FRAME_HDR = [1, 0, 1, 0, 0, 1, 1, 1, 0, 1]';   % frame header
 FS = 10e6;                  % sampling frequency (Hz)
@@ -18,13 +18,13 @@ tx_frame = make_frame(FRAME_HDR, tx_msg);
 % stem(0:length(tx_frame)-1, tx_frame);
 
 % baseband signal
-ps = zeros(M, 1); %%% Change this line %%%
+ps = hamming(M); %%% Change this line %%%
 ms = make_signal(tx_frame, M, ps);
-% stem(1:20*M, real(ms(1:20*M)))
+stem(imag(ms))
 
 % modulate the baseband signal
 s = modulate(ms, FS, FC, PHIC);
-% plot(0:length(s)-1, s);
+% plot(0:length(s)-1, real(s));
 
 %% Channel
 % corrupted by AWGN received signal
@@ -40,7 +40,10 @@ lpf = firpm(order, ff, fa);
 
 % demodulate the received signal
 rd = demodulate(r, FS, FC, lpf, PHIC);
-% stem(0:10*M-1, rd(1:10*M))
+% figure; subplot(2, 1, 1)
+% stem(real(rd));
+% subplot(2, 1, 2)
+% stem(imag(rd));
 
 % get the received frame
 rx_frame = get_frame(rd, M, ps, order);
@@ -93,13 +96,28 @@ frame_bipolar=frame*2-1;
 % pulse shaping: (expansion + filtering)
 frame_bipolar_i=frame_bipolar(1:2:length(frame_bipolar));
 frame_bipolar_q=frame_bipolar(2:2:length(frame_bipolar));
-
+% Expansion:
+frame_bipolar_i_expanded=zeros(length(frame_bipolar_i)*M, 1);
+for i=1:length(frame_bipolar_i)
+    frame_bipolar_i_expanded((i-1)*M+1)=frame_bipolar_i(i);
+end
+frame_bipolar_q_expanded=zeros(length(frame_bipolar_q)*M, 1);
+for i=1:length(frame_bipolar_q)
+    frame_bipolar_q_expanded((i-1)*M+1)=frame_bipolar_q(i);
+end
+% Filtering:
+frame_bipolar_i_expanded=filter(pulse, 1, frame_bipolar_i_expanded);
+frame_bipolar_q_expanded=filter(pulse, 1, frame_bipolar_q_expanded);
 % add some zeros at the end of the signal
-frame_bipolar_i=[frame_bipolar_i, zeros(1,10*M)];
-frame_bipolar_q=[frame_bipolar_q, zeros(1,10*M)];
+frame_bipolar_i_expanded=[frame_bipolar_i_expanded; zeros(10*M,1)];
+frame_bipolar_q_expanded=[frame_bipolar_q_expanded; zeros(10*M,1)];
 
-%%% Delete next line %%%
-y = frame;cd cd
+% figure;
+% subplot(2, 1, 1)
+% stem(frame_bipolar_i_expanded);
+% subplot(2, 1, 2)
+% stem(frame_bipolar_q_expanded);
+y = frame_bipolar_i_expanded+j*frame_bipolar_q_expanded;
 end
 %%
 function s = modulate(x, fs, fc, phi)
@@ -114,10 +132,9 @@ function s = modulate(x, fs, fc, phi)
 %   s: modulated signal (column vector)
 %
 % modulation
-%%% Your code here %%%
-
-%%% Delete next line %%%
-s = x;
+% figure; stem(x)
+discrete_domain = [0:length(x)-1]';
+s = x.*exp(-j*(2*pi*fc*discrete_domain./fs+phi));
 end
 %%
 function y = add_noise(x, snr)
@@ -130,16 +147,15 @@ function y = add_noise(x, snr)
 %
 
 % signal power
-%%% Your code here %%%
+signal_power=pow(x);
 
 % noise
-%%% Your code here %%%
-
+snr_nat_power = 10^(snr/10);
+noise_power = signal_power/snr_nat_power;
+noise_sigma = sqrt(noise_power);
 % corruption
-%%% Your code here %%%
-
-%%% Delete next line %%%
-y = x;
+n = noise_sigma*randn(length(x), 1);
+y = x+n;
 end
 %%
 function y = demodulate(r, fs, fc, flt, phi)
@@ -154,13 +170,12 @@ function y = demodulate(r, fs, fc, flt, phi)
 %   y: demodulated signal (column vector)
 %
 % demodulation
-%%% Your code here %%%
-
+discrete_domain = [0:length(r)-1]';
+s = r.*exp(j*(2*pi*fc*discrete_domain./fs+phi));
+% figure; stem(s)
 % filter
-%%% Your code here %%%
- 
-%%% Delete next line %%%
-y = r;
+x = filter(flt, 1, s);
+y = x;
 end
 %%
 function frame = get_frame(x, M, ps, N)
@@ -176,16 +191,25 @@ function frame = get_frame(x, M, ps, N)
 %   frame: received bits (column vector)
 %
 % matched filtering
-%%% Your code here %%%
-
+xf = filter(ps, 1, x);
+% figure; stem(real(xf)); figure; stem(imag(xf))
 % symbol sampling
-%%% Your code here %%%
+z = xf(38:M:length(xf));
 
+z_i = real(z);
+z_q = imag(z);
 % decision
-%%% Your code here %%%
+z_i(z_i > 0) = 1;
+z_i(z_i < 0) = -1;
+z_q(z_q > 0) = 1;
+z_q(z_q < 0) = -1;
+figure; stem(z_i); figure; stem(z_q)
 
-%%% Delete next line %%%
-frame = x;
+frame = zeros(length(z_i) + length(z_q), 1);
+frame(1:2:length(frame)) = z_i;
+frame(2:2:length(frame)) = z_q;
+frame = (frame + 1) / 2;
+
 end
 %%
 function [msg, err] = get_msg(frame, header)
