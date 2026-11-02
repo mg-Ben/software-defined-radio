@@ -1,0 +1,30 @@
+# ¿Cómo afecta $\mu$ a la convergencia?
+El parámetro $\mu$ determina el salto al nuevo valor de $\tau$ en el algoritmo iterativo. En este caso, el algoritmo obtiene, en cada iteración, un valor de pendiente que define la asimetría en la correlación con respecto al instante de tiempo en el que se ha muestreado dicha función y, de esta manera, determina si se debe adelantar o retrasar el próximo instante de muestreo.
+
+Concretamente, el algoritmo:
+1. Toma la muestra de la función de correlación en el valor de $\tau$ actual: si no existiera un valor en ese instante exacto, se interpola
+2. Toma las muestras en el valor $\tau+\delta$ y $\tau-\delta$ de la correlación: de nuevo, se interpola si no existiera valor en ese instante exacto
+3. Obtiene una medición de asimetría restando ambos valores y dividiendo entre $2\delta$. Si resulta negativo, quiere decir que el punto izquierdo es superior al derecho y, por tanto, la función de autocorrelación tiene un sesgo hacia la derecha con respecto a $\tau$ actual: por tanto, se debe incrementar $\tau$ para la futura captura
+4. Se pondera esa pendiente según $\mu$ para recalcular el próximo valor
+
+De manera general, el factor de ponderación para evitar que el sistema se "rompa" debería garantizar que el próximo valor de $\tau$ no supere el tiempo de símbolo (debe estar entre -T/2 y T/2). Además, debe ser tal que el próximo valor de $\tau$ logre un error menor que el anterior (de lo contrario, se tendría un sistema inestable); en otras palabras, el próximo valor de $\tau$ debería ser más próximo al instante ótpimo de muestreo o, como mucho, igual de distante que el anterior.
+
+El próximo valor de $\tau$ depende de:
+- La pendiente medida para la función de correlación entre $\tau+\delta$ y $\tau-\delta$
+- La diferencia entre el valor del símbolo reconstruido y el valor de correlación capturado
+
+El factor $\mu$ pondera el producto entre ambos. Dicho producto depende del $\delta$ elegido, así como de los símbolos elegidos en la modulación. Si por ejemplo se tiene un $\delta$ reducido, la pendiente tenderá a ser más elevada y las actualizaciones de $\tau$ serán más "sensibles" (cambiarán más de iteración a iteración). Si la modulación PAM tiene símbolos más elevados (e.g. [-12, -4, 4 y 12] en lugar de [-3, -1, 1, 3]), la correlación tenderá a tener más pendiente y $\tau$ variará más entre iteraciones. Además, en este último caso, el error entre símbolo reconstruido y correlación será mayor, lo que podría disparar el valor de $\tau$. Por ello, se escoge $\mu$ para evitar que, en el peor de los casos (llega el símbolo con mayor pendiente de correlación (i.e. el símbolo con mayor valor)) el sistema se desestabilice eligiendo un próximo valor de $\tau$ demasiado elevado.
+
+En el caso de la práctica: la modulación es 2-PAM con símbolos [-3, -1, 1 y 3], así que el caso más crítico es cuando llega un $\pm3$. Si se asumen ventanas rectangulares, el pico de correlación sería igual al valor de la muestra (se asume que el filtro en recepción se escoge de tal manera que el pico de correlación coincide con el valor del símbolo) y la pendiente de correlación máxima se daría para la muestra con mayor energía (3 por ejemplo, por lo que la pendiente sería 3/Ts = 1.5 unidades/s; se divide entre Ts debido a que la correlación abarca desde -Ts hasta Ts). Independientemente de $\delta$, la pendiente se preserva en este caso.
+
+Si el sistema detectó una pendiente de 1.5 unidades/s, quiere decir que el valor de $\tau$ es inferior al que debería y crecería con valor igual a $\mu(s-x)dx/2\delta$, siendo $dx/2\delta = 1.5 uds/s$, $s$ el símbolo reconstruido y $x$ el valor de correlación. En el peor de los casos, se estaría capturando en el extremo del símbolo, donde el valor de correlación (x) sería cercano a 1.5 para un símbolo de valor 3 (s), así que el sistema corregiría a un nuevo valor igual a $\mu \cdot 1.5 \cdot 1.5$. Buscamos que el futuro valor de $\tau$ no supere el tiempo de símbolo, así que debe ser inferior a Ts/2 (1s). Por tanto, $\mu < 1/(1.5\cdot1.5) = 0.444$. Dado que, en la práctica, el parámetro $\mu$ incluye el término $2\delta$:
+- $\mu(s-x)dx/2\delta < T_s/2$. $dx$ es la diferencia máxima en la pendiente de correlación (este valor es igual a la pendiente de la ladera (1.5 unidades/s) multiplicado por $2\delta$). s=3, valor del símbolo más alto y x=1.5, el valor mínimo que se puede capturar de correlación en el extremo del intervalo. Por tanto, $(\mu/2\delta)\cdot1.5\cdot1.5(2\delta) < 1$, luego $\mu/2\delta < 1/(4.5\delta) = 2.22...$ ($\delta=0.1s$)
+- Esta aproximación es para ventanas rectangulares: si se utiliza otro tipo de filtros más abruptos, sería un valor todavía menor
+
+# ¿Cómo afecta la constelación de la entrada a la convergencia de $\tau$?
+Cuando se elige una constelación con menos símbolos (e.g. 2-PAM), existe menos variabilidad en los posibles valores que se pueden obtener de correlación. Esto favorece que el valor de $\mu$ escogido funcione para la mayoría de los símbolos y que el sistema funcione de manera más "acotada".
+
+Sin embargo, con modulaciones con alfabetos más grandes (e.g. 6-PAM), la variabilidad de símbolos es mayor y el parámetro $\mu$ se debe ajustar al caso peor. No obstante, si existe gran variabilidad, el parámetro $\mu$ podría ser demasiado reducido para los símbolos con menor energía (de modo que tarda en converger) o demasiado alto para los símbolos con mayor energía (de modo que el sistema podría actualizar aun valor $\tau$ muy dispar con respecto al valor anterior). El sistema, en resumen, tarda más en converger en general.
+
+# ¿Cómo afecta el ruido a la convergencia de $\tau$?
+Cuando se introduce ruido, el algoritmo iterativo para $\tau$ pasa a ser aleatorio, en el sentido de que la función de correlación que se utiliza pasaría a ser también aleatoria. El ruido puede desviar el valor de $\tau$, porque puede hacer pensar al sistema que está cerca o lejos del valor $\tau$ deseado, pero realmente no ser así (tardará más en converger y, además, oscilará continuamente en torno al valor final).
