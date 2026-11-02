@@ -1,4 +1,5 @@
-# ¿Cómo afecta $\mu$ a la convergencia?
+# Decision-Aided (`clockrecDD.m`)
+## ¿Cómo afecta $\mu$ a la convergencia?
 El parámetro $\mu$ determina el salto al nuevo valor de $\tau$ en el algoritmo iterativo. En este caso, el algoritmo obtiene, en cada iteración, un valor de pendiente que define la asimetría en la correlación con respecto al instante de tiempo en el que se ha muestreado dicha función y, de esta manera, determina si se debe adelantar o retrasar el próximo instante de muestreo.
 
 Concretamente, el algoritmo:
@@ -21,10 +22,34 @@ Si el sistema detectó una pendiente de 1.5 unidades/s, quiere decir que el valo
 - $\mu(s-x)dx/2\delta < T_s/2$. $dx$ es la diferencia máxima en la pendiente de correlación (este valor es igual a la pendiente de la ladera (1.5 unidades/s) multiplicado por $2\delta$). s=3, valor del símbolo más alto y x=1.5, el valor mínimo que se puede capturar de correlación en el extremo del intervalo. Por tanto, $(\mu/2\delta)\cdot1.5\cdot1.5(2\delta) < 1$, luego $\mu/2\delta < 1/(4.5\delta) = 2.22...$ ($\delta=0.1s$)
 - Esta aproximación es para ventanas rectangulares: si se utiliza otro tipo de filtros más abruptos, sería un valor todavía menor
 
-# ¿Cómo afecta la constelación de la entrada a la convergencia de $\tau$?
+## ¿Cómo afecta la constelación de la entrada a la convergencia de $\tau$?
 Cuando se elige una constelación con menos símbolos (e.g. 2-PAM), existe menos variabilidad en los posibles valores que se pueden obtener de correlación. Esto favorece que el valor de $\mu$ escogido funcione para la mayoría de los símbolos y que el sistema funcione de manera más "acotada".
 
 Sin embargo, con modulaciones con alfabetos más grandes (e.g. 6-PAM), la variabilidad de símbolos es mayor y el parámetro $\mu$ se debe ajustar al caso peor. No obstante, si existe gran variabilidad, el parámetro $\mu$ podría ser demasiado reducido para los símbolos con menor energía (de modo que tarda en converger) o demasiado alto para los símbolos con mayor energía (de modo que el sistema podría actualizar aun valor $\tau$ muy dispar con respecto al valor anterior). El sistema, en resumen, tarda más en converger en general.
 
-# ¿Cómo afecta el ruido a la convergencia de $\tau$?
+Sin embargo, tener mayor alfabeto de símbolos protege al sistema frente a errores en la reconstrucción de los símbolos, siempre y cuando los símbolos disten entre sí menos que para modulaciones con menos símbolos; por ejemplo, si se tiene un 2-PAM entre [-12, 12] y un 4-PAM con [-12, -4, 4, 12], si hubiera algún error en la reconstrucción, el error en 4-PAM sería estadísticamente menor en el sentido de que un símbolo mal reconstruido se aproximará a un valor más cercano al valor original por estar más próximo al nivel de cuantificación que el caso 2-PAM. Esto hace que $\tau$ no se dispare a un valor muy elevado. Si el alfabeto es muy elevado, también puede ser un inconveniente, porque el error puede ser tan bajo que $\tau$ tarde mucho en converger.
+
+## ¿Cómo afecta el ruido a la convergencia de $\tau$?
 Cuando se introduce ruido, el algoritmo iterativo para $\tau$ pasa a ser aleatorio, en el sentido de que la función de correlación que se utiliza pasaría a ser también aleatoria. El ruido puede desviar el valor de $\tau$, porque puede hacer pensar al sistema que está cerca o lejos del valor $\tau$ deseado, pero realmente no ser así (tardará más en converger y, además, oscilará continuamente en torno al valor final).
+
+# Non-Decision-Aided (`clockrecOP.m`)
+## ¿Cómo afecta $\mu$ a la convergencia?
+En este otro caso, la actualización del valor de $\tau$ se hace en base únicamente de la pendiente calculada en los instantes $\tau+\delta$ y $\tau-\delta$. Esta pendiente depende de la energía del símbolo, así como del valor de $\delta$ elegido y del símbolo elegido (ventana rectangular, coseno alzado, ventana triangular...). Nuevamente, con $\mu$ se determina el peso que se da al error para el futuro valor de $\tau$.
+
+El valor de $\mu$ para evitar que el sistema se vuelva inestable es el valor que consigue que la próxima actualización de $\tau$ no supere $T_s/2$. Por tanto, se evaluaría en el peor de los casos (elegir un valor $\tau$ en el que entre la muestra $\tau$ y la muestra _Early_ y la muestra _Late_ no se encuentre el máximo de correlación, lo que maximizaría la pendiente y, al mismo tiempo, dado que el futuro valor de $\tau$ depende proporcionalmente del valor de correlación muestreado, elegir un punto cercano al instante óptimo de muestreo; esto se cumple en instantes cercanos al instante óptimo de muestreo en los que se cumple que no se captura un pico de correlación entre la muestra _Early_ y $\tau$ ni entre la muestra _Late_ y $\tau$).
+
+Si se asume que se captura cerca del valor máximo de correlación (en el caso de la práctica, 2-PAM con símbolos [-1,1], luego el valor máximo de correlación es 1) y que se tiene el peor valor medible de pendiente, se puede estimar el valor $\mu$ para evitar que el sistema se vuelva inestable.
+
+El peor valor medible de diferencia se puede estimar como la máxima o mínima diferencia muestra por muestra del vector de correlación `x`, dado que, en este caso, $\delta=0.1s$ y se garantiza que la muestra futura (_Late_) y la muestra anterior (_Early_) van a estar dentro del período de muestreo ($Ts/m = 2/2 = 1s$). Asumiendo que la peor diferencia en la correlación es `1.357` y que esa diferencia se da muy próxima al valor máximo de correlación (1), se tendría que el próximo valor de $\tau$ sería: $\mu \cdot 1.357 \cdot 1 < T_s/2$, luego $\mu < 0.7369$. Este valor $\mu$ ya incluye $2\delta$. Sin embargo, dado que la condición impuesta no tiene por qué darse exactamente como se ha planteado, existe un margen para el valor $\mu$ máximo. Según las pruebas realizadas, con $\mu >= 2.1$ el sistema comienza a tener casos en los que $\tau$ converge a un valor superior a $T_s/2$.
+
+## ¿Cuánto tiempo tarda el ojo en abrirse en función de $t_{offset}$?
+El parámetro $t_{offset}$ configura, con respecto al centro, la asimetría en la función del filtro de transmisión. Por ejemplo, un valor de $t_{offset} = -2.3s$ configurará el filtro con un retardo de $2.3s$ con respecto al centro, de modo que la convolución resultante para la señan transmitida tendrá un retardo de $2.3s$ adicional. El resultado se muestrea a continuación cada $(T_s/m) s$ para obtener así la señal discreta (el muestreo podría no capturar el máximo de la respuesta al impulso, pero se puede entender que por debajo estaría la señal continua). La señal transmitida, por tanto, contendría el centro del símbolo en $T_{respuesta}/2 + t_{offset}$, siendo $T_{respuesta}$ la duración de la respuesta al impulso.
+
+Cuando la señal es recibida por el receptor, se convoluciona con un filtro con respuesta al impulso igual que en transmisión, pero sin $t_{offset}$. Por tanto, en tiempo continuo, se alcanzaría el pico de correlación en $T_{respuesta}/2 + T_{respuesta}/2 + t_{offset} = T_{respuesta} + t_{offset}$.
+
+El algoritmo en recepción, debido a que desconoce el valor de $t_{offset}$, fija como instante igual a $-T_{respuesta}/2$ en el eje de tiempos el instante correspondiente a $T_{respuesta}/2$ y comienza desde entonces a iterar. Con dicha referencia, el instante $t = \tau = 0$ se correspondería con un muestreo en lo que sería $T_{respuesta}$ si se considera el origen de tiempos desde el inicio de la señal recibida. De cualquier modo, el algoritmo iterativo ignora los primeros $T_{respuesta}/2$ debido a que se conoce que es tiempo residual debido a la doble convolución en transmisión y recepción. A partir de entonces, el algoritmo actualiza el origen de tiempos cada $T_s$, de tal manera que se considera que el instante inicial del símbolo que se está procesando actualmente se corresponde con $-T_s/2$, de manera que $\tao = 0$ se corresponda con la mitad del símbolo.
+
+Cuando existe un $t_{offset}$, el valor inicial de $\tau = 0$ dista $t_{offset}$ del momento óptimo de muestreo. El algoritmo deberá corregir dicho valor iterativamente hasta que $\tau = t_{offset}$. Por tanto, $\tau$ converge a $t_{offset}$.
+- El número de iteraciones se podría obtener dividiendo entre $T_s$ (el algoritmo iterativo se actualiza cada $T_s$ segundos)
+
+Cuando existe un $t_{offset} > T_s$ (e.g. `2.3s`, que supera los 2s de la duración de cada símbolo), dado que el algoritmo va actualizando la referencia de tiempos cada $T_s$, $\tau$ nunca puede converger a un valor por encima de $\pm T_s/2$. Por tanto, solo detectaría la parte restante (0.3 s en el ejemplo), que se puede obtener como $t_{offset} - \lfloor t_{offset} / T_s\rfloor \cdot T_s$.
