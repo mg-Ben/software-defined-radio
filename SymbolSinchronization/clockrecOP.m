@@ -7,9 +7,10 @@ m=2;                               % oversampling factor
 constel=2;                         % 2-pam constellation
 beta=0.5;                          % rolloff parameter for srrc
 chan=[1];                          % T/m "channel"
-toffset=-2.3;                        % initial timing offset
+toffset=-2.3;                      % initial timing offset
+l = 50;                            % 1/2 length of pulse shape (in symbols)
 pulshap=srrc(l,beta,m,toffset);    % srrc pulse shape
-l=((length(pulshap)-1)/2)/m;       % 1/2 length of pulse shape (in symbols)
+% l=((length(pulshap)-1)/2)/m;       % 1/2 length of pulse shape (in symbols)
 s=pam(n,constel,1);                % random data sequence with var=1
 sup=zeros(1,n*m);                  % upsample the data by placing...
 sup(1:m:end)=s;                    % ... p zeros between each data point

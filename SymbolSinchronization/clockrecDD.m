@@ -10,22 +10,54 @@ chan=[1];                        % T/m "channel"
 toffset=-0.3;                    % initial timing offset
 pulshap=srrc(l,beta,m,toffset);  % srrc pulse shape with timing offset
 max_symbol_value = 3;
-s=pam(n,6,max_symbol_value^2);   % random data sequence with var=5
+s=pam(n,2,max_symbol_value^2);   % random data sequence with var=5
 sup=zeros(1,n*m);                % upsample the data by placing...
 sup(1:m:n*m)=s;                  % ... m-1 zeros between each data point
 hh=conv(pulshap,chan);           % ... and pulse shape
 r=conv(hh,sup);                  % ... to get received signal
+
 % Add noise:
 sigma=0.05;
 noise=sigma*randn(1, length(r));
 r=noise+r;
 matchfilt=srrc(l,beta,m,0);      % matched filter = srrc pulse shape
 x=conv(r,matchfilt);             % convolve signal with matched filter
+figure;
+subplot(4, 1, 1);
+stem(sup)
+subplot(4, 1, 2);
+stem(pulshap)
+subplot(4, 1, 3);
+stem(r)
+subplot(4, 1, 4);
+stem(x)
+
+% Simular desvíos en el reloj (OPCIONAL)
+% de recepción: en este caso, se simula el efecto de que, en el receptor,
+% las muestras se capturan con un período de muestreo Ts que difiere del
+% Ts de transmisión. Concretamente, es más lento en recepción
+% Realmente, se podría
+% coger la señal recibida
+% (r), remuestrearla
+% interpolando con el factor "fac" y después convolucionar el resultado,
+% pero también se puede
+% directamente coger la
+% señal recibida y
+% convolucionada (x) y
+% después remuestrear con el factor "fac" (es equivalente)
+fac = 1.00005; 
+z = zeros(size(x)); % percent change in period
+t = l + 1:fac:length(x)-2*l; % vector of new times
+for i = l + 1:length(t) % resample x at new rate
+    z(i) = interpsinc(x, t(i), l); % to create received signal
+end % with period offset
+figure; stem(x); hold on; stem(z)
+x = z;
 
 % clock recovery algorithm
 tnow=l*m+1; tau=0; xs=zeros(1,n);   % initialize variables
 tausave=zeros(1,n); tausave(1)=tau; i=0;
-mu=0.001;                            % algorithm stepsize
+mu=0.001;                           % algorithm stepsize
 delta=0.1;                          % time for derivative
 while tnow<length(x)-2*l*m          % run iteration
   i=i+1;
@@ -39,8 +71,10 @@ while tnow<length(x)-2*l*m          % run iteration
 end
 
 % plot results
+figure;
 subplot(2,1,1), plot(xs(1:i-2),'b.')        % plot constellation diagram
 title('constellation diagram');
 ylabel('estimated symbol values')
 subplot(2,1,2), plot(tausave(1:i-2))        % plot trajectory of tau
 ylabel('offset estimates'), xlabel('iterations')
+
