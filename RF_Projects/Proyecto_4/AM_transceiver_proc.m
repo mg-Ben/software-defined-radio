@@ -58,9 +58,7 @@ while(state~=0)
             % *** YOUR CODE ***
             % Task 1:
             xtest_a=[xtest_a;xa];
-            % Task 2:
-            xtest_b=[xtest_b;upsample(xa)];
-            
+            state = 0;
         otherwise
             if state~=state_0; disp('Rx');  end
             
@@ -70,11 +68,10 @@ while(state~=0)
                 if ~isempty(xtest_a)
                     truncate_audiosample_index=min(length(xtest_a),2*fsa);
                     xtest_a=xtest_a(1:truncate_audiosample_index);
-                    adw(xtest_a);                                   % (Task 1)
-                % Task 2:
-                elseif ~isempty(xtest_b)
-                    
+                    % adw(xtest_a);                                   % (Task 1)
                 end
+                % Task 2:
+                xtest_b=upsample()
             end
     end
     state_0 = state;
