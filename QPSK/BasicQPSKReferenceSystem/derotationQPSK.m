@@ -22,13 +22,13 @@ k2 = 4*wn^2/(1+2*dseta*wn+wn^2);     %k2
 
 %PLL LOOP
 zt= ztI + 1j*ztQ; %PLL input
-zs=zeros(size(zt)); zs(1)=zt(1);
-zsI=zeros(size(zt));zsQ=zeros(size(zt));
-z=zeros(size(zt));
-theta=0; thetaplot = zeros(size(zt));
+zs=zeros(1, length(zt)-1); zs(1)=zt(1);
+zsI=zeros(1, length(zt)-1);zsQ=zeros(1, length(zt)-1);
+z=zeros(1, length(zt)-1);
+theta=0; thetaplot = zeros(1, length(zt)-1);
 accError =0;
 
-constellation = [exp(1j*pi/4), exp(1j*3*pi/4), exp(-1j*3*pi/4), exp(-1j*pi/4)];
+constellation = sqrt(2)*[exp(1j*pi/4), exp(1j*3*pi/4), exp(-1j*3*pi/4), exp(-1j*pi/4)];
 
 for i=1:length(zt)-1
     % For the first iteration, we assume we already have the initial zs
@@ -38,10 +38,11 @@ for i=1:length(zt)-1
     % In this case we can use |angle()| as an estimation for distance:
     distance = abs(angle(distance));
     [min_value, index_min] = min(distance);
-    zI = constellation(index_min);
+    z(i) = constellation(index_min);
 
     %PED
-    error = angle(zs(i)*conj(zI));
+    % error = angle(zs(i)*conj(z(i)));
+    error = atan(imag(zs(i)*conj(z(i)))/real(zs(i)*conj(z(i))));
     
     %PLL control loop
     accError = accError + error;
@@ -65,7 +66,7 @@ title('Input constellation diagram'); axis square; grid
 subplot(222); plot(real(zs), imag(zs),'b.')     % plot output constellation diagram
 title('Output constellation diagram'); grid; axis square; 
 subplot(212); plot(thetaplot*360/(2*pi))
-title('Derotation & Slicer'); ylabel('theta correction')
+title('Derotation & Slicer'); ylabel('theta correction [º]')
 
 
 
